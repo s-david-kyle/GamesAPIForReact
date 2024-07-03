@@ -8,4 +8,5 @@ public class Game
     public string? Name { get; set; }
     public string Uri { get; set; }
     public List<Platform> Platforms { get; set; } = new();
+    public int? Metacritic { get; set; }
 }
