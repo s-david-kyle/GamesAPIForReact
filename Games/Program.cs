@@ -45,5 +45,9 @@ if (app.Environment.IsDevelopment())
 
 app.MapGameEndpoints();
 
+app.MapGenreEndpoints();
+
+app.MapPlatformEndpoints();
+
 app.Run();
 

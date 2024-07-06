@@ -3,6 +3,8 @@ using GameData;
 using GameDomain;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.OpenApi;
+using Microsoft.AspNetCore.Mvc;
+
 namespace Games;
 
 public static class GameEndpoints
@@ -18,16 +20,68 @@ public static class GameEndpoints
         .WithName("GetAllGames")
         .WithOpenApi();
 
-        group.MapGet("/GetGamesWithCount", async (GamesContext db) =>
+        group.MapGet("/GetGamesWithCount", async (GamesContext db, [FromQuery] string? genres = null, int? platforms = null, string? ordering = null) =>
         {
-            return new 
+            List<int> genreIds = genres?.Split(',').Select(int.Parse).ToList() ?? new List<int>();
+            var query = db.Games.AsQueryable();
+
+            if (genreIds.Count > 0)
             {
-                GameList = await db.Games.Include(p => p.Platforms).ToListAsync(),
-                Count = await db.Games.CountAsync()
+                query = query.Where(game => game.Genres.Any(genre => genreIds.Contains(genre.GenreId)));
+            }
+            if (platforms != null)
+            {
+                query = query.Where(game => game.Platforms.Any(platform => platform.PlatformId == platforms));
+            }
+
+            // Apply ordering based on the ordering parameter
+            query = ordering?.ToLower() switch
+            {
+                "name" => query.OrderBy(g => g.Name),
+                "released" => query.OrderBy(g => g.Released),
+                "added" => query.OrderBy(g => g.Added),
+                "created" => query.OrderBy(g => g.Created),
+                "updated" => query.OrderBy(g => g.Update),
+                "rating" => query.OrderBy(g => g.Rating),
+                "metacritic" => query.OrderBy(g => g.Metacritic),
+                _ => query // Default ordering (no specific order)
+            };
+
+            var gamesWithGenres = await query.Include(p => p.Platforms).ToListAsync();
+            var count = await query.CountAsync();
+
+            return new
+            {
+                Results = gamesWithGenres,
+                Count = count
             };
         })
         .WithName("GetGamesWithCount")
         .WithOpenApi();
+//        group.MapGet("/GetGamesWithCount", async (GamesContext db, [FromQuery] string? genres = null, int? platforms = null) =>
+//        {
+//            List<int> genreIds = genres?.Split(',').Select(int.Parse).ToList() ?? new List<int>();            
+
+//            var query = db.Games.AsQueryable();
+//            if (genreIds.Count > 0)
+//            {
+//                query = query.Where(game => game.Genres.Any(genre => genreIds.Contains(genre.GenreId)));
+//            }
+//            if (platforms != null)
+//            {
+//                query = query.Where(game => game.Platforms.Any(platform => platform.PlatformId == platforms));
+//            }
+//            var gamesWithGenres = await query.Include(p => p.Platforms).ToListAsync();
+//            var count = await query.CountAsync();
+//            return new
+//            {
+//                Results = gamesWithGenres,
+//                Count = count
+//            };
+//        })
+//.WithName("GetGamesWithCount")
+//.WithOpenApi();
+
 
         group.MapGet("/{id}", async Task<Results<Ok<Game>, NotFound>> (int gameid, GamesContext db) =>
         {
